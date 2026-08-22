@@ -12,3 +12,14 @@ An application for segmentation and recognition of information printed on identi
 The `webapp/` directory contains a standalone Flask web app to extract data
 from Mexican INE (voter ID) credentials via image preprocessing + OCR. See
 [`webapp/README.md`](webapp/README.md) for setup and usage.
+
+## Training INE-specific models
+`ine_model/` generates a synthetic INE dataset (no real INE images —
+Faker-generated fake data rendered onto a schematic card template, composited
+onto random backgrounds with perspective/lighting augmentation, the same
+overall recipe as the MIDV2020 pipeline above) and trains two models on it: a
+UNet to locate/crop the card, and a Faster R-CNN to detect each field's
+bounding box for per-field OCR. Run `notebooks/train_ine_model.ipynb` (Colab/
+GPU recommended) to generate the dataset and train both models; the web app
+in `webapp/` picks up the resulting weights automatically if you drop them in
+`webapp/model/` — see [`webapp/model/README.md`](webapp/model/README.md).

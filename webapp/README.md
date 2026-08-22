@@ -4,11 +4,18 @@ Aplicación web para extraer automáticamente los datos impresos en una
 credencial para votar (INE) mexicana a partir de una foto, usando
 preprocesamiento de imagen (OpenCV) y OCR (Tesseract).
 
-No depende de ningún modelo entrenado del resto del repositorio (no hay
-ninguno versionado); usa detección de bordes/perspectiva clásica para
+Por defecto usa detección de bordes/perspectiva clásica (OpenCV) para
 localizar la tarjeta y expresiones regulares ancladas a las etiquetas del
-formato INE para extraer cada campo. Los resultados se muestran en un
-formulario editable porque el OCR nunca es 100% exacto.
+formato INE para extraer cada campo — no requiere ningún modelo entrenado.
+Los resultados se muestran en un formulario editable porque el OCR nunca es
+100% exacto.
+
+Si entrenas los modelos de `notebooks/train_ine_model.ipynb` (segmentación
+para localizar la tarjeta + detección de campos), `ine_extractor.py` los usa
+automáticamente en cuanto coloques los pesos en `webapp/model/` — mejora
+mucho la precisión porque hace OCR campo por campo en vez de sobre todo el
+texto. Sin esos pesos, la app sigue funcionando igual con la heurística.
+Ver `webapp/model/README.md`.
 
 ## Campos extraídos
 
@@ -36,6 +43,14 @@ python app.py
 ```
 
 Luego abre `http://localhost:5000` en el navegador.
+
+Para usar los modelos entrenados (opcional), instala también las
+dependencias de inferencia y coloca los pesos entrenados:
+
+```bash
+pip install -r requirements-model.txt
+# copia unet_ine.h5 y field_detector.pth a webapp/model/
+```
 
 ## Uso
 

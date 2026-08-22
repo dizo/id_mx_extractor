@@ -12,7 +12,9 @@ user can correct mistakes before using the data.
 """
 from __future__ import annotations
 
+import os
 import re
+import sys
 import unicodedata
 from dataclasses import dataclass, field
 from typing import Optional
@@ -26,6 +28,53 @@ DEFAULT_TESS_CONFIG = "--oem 3 --psm 6"
 MRZ_TESS_CONFIG = (
     "--oem 3 --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<"
 )
+
+# Optional trained models (ine_model/, see notebooks/train_ine_model.ipynb).
+# Everything below degrades gracefully to the heuristic/regex pipeline above
+# when tensorflow/torch aren't installed or the weight files don't exist —
+# none of this is required to run the app.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+MODEL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "model")
+SEG_MODEL_PATH = os.path.join(MODEL_DIR, "unet_ine.h5")
+DET_MODEL_PATH = os.path.join(MODEL_DIR, "field_detector.pth")
+
+_seg_model = None
+_seg_load_attempted = False
+_det_model = None
+_det_load_attempted = False
+
+
+def _get_segmentation_model():
+    global _seg_model, _seg_load_attempted
+    if _seg_load_attempted:
+        return _seg_model
+    _seg_load_attempted = True
+    if os.path.isfile(SEG_MODEL_PATH):
+        try:
+            import tensorflow as tf
+
+            _seg_model = tf.keras.models.load_model(SEG_MODEL_PATH, compile=False)
+        except Exception:
+            _seg_model = None
+    return _seg_model
+
+
+def _get_detection_model():
+    global _det_model, _det_load_attempted
+    if _det_load_attempted:
+        return _det_model
+    _det_load_attempted = True
+    if os.path.isfile(DET_MODEL_PATH):
+        try:
+            from ine_model.detection_model import load_detection_model
+
+            _det_model = load_detection_model(DET_MODEL_PATH, device="cpu")
+        except Exception:
+            _det_model = None
+    return _det_model
 
 
 class ExtractionError(Exception):
@@ -262,9 +311,93 @@ def parse_ine_front(raw_text: str) -> FrontFields:
     return fields
 
 
+def _locate_card(img: np.ndarray) -> np.ndarray:
+    """Crops the card out of the photo, preferring the trained segmentation
+    model (ine_model/) over the OpenCV contour heuristic when available.
+    """
+    seg_model = _get_segmentation_model()
+    if seg_model is not None:
+        try:
+            from ine_model.segmentation_model import DEFAULT_INPUT_SIZE, crop_card_from_mask, predict_mask
+
+            mask = predict_mask(seg_model, img, input_size=DEFAULT_INPUT_SIZE)
+            cropped = crop_card_from_mask(img, mask)
+            if cropped is not img:
+                return cropped
+        except Exception:
+            pass
+    return _find_and_warp_card(img)
+
+
+def _clean_field_value(label: str, text: str) -> Optional[str]:
+    """Applies the same per-field regex/cleanup used by the label-based
+    parser, but to a single OCR'd crop instead of a shared text segment.
+    """
+    text_norm = _strip_accents_upper(text)
+
+    if label == "curp":
+        m = _CURP_RE.search(re.sub(r"\s+", "", text_norm))
+        return m.group(0) if m else _clean_text(text_norm) or None
+    if label == "clave_elector":
+        m = _CLAVE_ELECTOR_RE.search(re.sub(r"[^A-Z0-9]", "", text_norm))
+        return m.group(0) if m else _clean_text(text_norm) or None
+    if label == "fecha_nacimiento":
+        m = _DATE_RE.search(text_norm)
+        return "/".join(m.groups()) if m else _clean_text(text_norm) or None
+    if label == "sexo":
+        m = re.search(r"\b([HM])\b", text_norm)
+        return m.group(1) if m else _clean_text(text_norm) or None
+    if label in ("anio_registro", "emision"):
+        m = _YEAR_RE.search(text_norm)
+        return m.group(0) if m else _clean_text(text_norm) or None
+    if label == "seccion":
+        m = _SECTION_RE.search(text_norm)
+        return m.group(0) if m else _clean_text(text_norm) or None
+    if label == "vigencia":
+        m = _VIGENCIA_RE.search(text_norm)
+        return "-".join(g for g in m.groups() if g) if m else _clean_text(text_norm) or None
+    if label in ("nombre", "domicilio"):
+        return _first_line(text_norm, max_words=12)
+    return _clean_text(text_norm) or None
+
+
+def _extract_fields_with_detector(card_bgr: np.ndarray, det_model) -> dict:
+    from ine_model.detection_model import predict_fields
+    from ine_model.template import FIELD_NAMES
+
+    boxes = predict_fields(det_model, card_bgr, score_threshold=0.5, device="cpu")
+    h, w = card_bgr.shape[:2]
+    pad = 4
+
+    result = {name: None for name in FIELD_NAMES}
+    raw_parts = []
+    for label, (x1, y1, x2, y2) in boxes.items():
+        x1, y1 = max(0, x1 - pad), max(0, y1 - pad)
+        x2, y2 = min(w, x2 + pad), min(h, y2 + pad)
+        crop = card_bgr[y1:y2, x1:x2]
+        if crop.size == 0:
+            continue
+        prepped_crop = _preprocess_for_ocr(crop)
+        psm = "7" if label not in ("nombre", "domicilio") else "6"
+        text = _ocr(prepped_crop, config=f"--oem 3 --psm {psm}").strip()
+        raw_parts.append(f"{label}: {text}")
+        result[label] = _clean_field_value(label, text)
+
+    result["raw_text"] = "\n".join(raw_parts)
+    return result
+
+
 def extract_front(image_bytes: bytes) -> dict:
     img = _read_image(image_bytes)
-    card = _find_and_warp_card(img)
+    card = _locate_card(img)
+
+    det_model = _get_detection_model()
+    if det_model is not None:
+        try:
+            return _extract_fields_with_detector(card, det_model)
+        except Exception:
+            pass  # fall back to whole-card OCR + regex below
+
     prepped = _preprocess_for_ocr(card)
     raw_text = _ocr(prepped)
     fields = parse_ine_front(raw_text)
@@ -356,7 +489,7 @@ def parse_mrz(raw_text: str) -> dict:
 
 def extract_back(image_bytes: bytes) -> dict:
     img = _read_image(image_bytes)
-    card = _find_and_warp_card(img)
+    card = _locate_card(img)
     prepped = _preprocess_for_ocr(card)
     raw_text = _ocr(prepped, config=MRZ_TESS_CONFIG)
     mrz = parse_mrz(raw_text)
