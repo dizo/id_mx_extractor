@@ -1,0 +1,17 @@
+services:
+  web:
+    build:
+      context: .
+      args:
+        # Set to "true" to bake in TensorFlow/PyTorch for the trained
+        # segmentation/detection models (much bigger image). See
+        # webapp/model/README.md.
+        INSTALL_MODEL_DEPS: "false"
+    ports:
+      - "5000:5000"
+    volumes:
+      # Drop unet_ine.h5 / field_detector.pth here (from
+      # notebooks/train_ine_model.ipynb) to use them without rebuilding —
+      # only takes effect if INSTALL_MODEL_DEPS was set to "true".
+      - ./webapp/model:/app/webapp/model:ro
+    restart: unless-stopped

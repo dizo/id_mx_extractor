@@ -1,0 +1,25 @@
+.git/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Real INE photos / PII — never bake into an image.
+real_samples/
+*.ine_real.*
+
+# Trained weights — mount at runtime instead of baking in (see
+# webapp/model/README.md and docker-compose.yml).
+webapp/model/*.h5
+webapp/model/*.keras
+webapp/model/*.pth
+
+# Not needed to serve the web app.
+ine_dataset/
+notebooks/
+*.ipynb
+paper/
+photos/
+presentation.pptx
+Different methods for localization of ID card from the input image.pdf
+*.ipynb_checkpoints/

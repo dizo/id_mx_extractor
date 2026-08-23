@@ -13,6 +13,13 @@ The `webapp/` directory contains a standalone Flask web app to extract data
 from Mexican INE (voter ID) credentials via image preprocessing + OCR. See
 [`webapp/README.md`](webapp/README.md) for setup and usage.
 
+Quickest way to run it is Docker, from the repo root:
+```bash
+docker compose up --build
+```
+then open `http://localhost:5000`. See [`webapp/README.md`](webapp/README.md#docker)
+for details (including how to enable the trained models below).
+
 ## Training INE-specific models
 `ine_model/` generates a synthetic INE dataset (no real INE images —
 Faker-generated fake data rendered onto a schematic card template, composited

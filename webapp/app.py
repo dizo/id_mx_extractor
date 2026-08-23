@@ -2,6 +2,8 @@
 extracted via OCR. See ine_extractor.py for the extraction logic."""
 from __future__ import annotations
 
+import os
+
 from flask import Flask, jsonify, render_template, request
 
 from ine_extractor import ExtractionError, extract_back, extract_front
@@ -59,4 +61,6 @@ def too_large(_exc):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    debug = os.environ.get("FLASK_DEBUG", "").lower() in ("1", "true", "yes")
+    port = int(os.environ.get("PORT", "5000"))
+    app.run(host="0.0.0.0", port=port, debug=debug)

@@ -52,6 +52,36 @@ pip install -r requirements-model.txt
 # copia unet_ine.h5 y field_detector.pth a webapp/model/
 ```
 
+## Docker
+
+Desde la raíz del repositorio (el `Dockerfile` necesita tanto `webapp/` como
+`ine_model/`):
+
+```bash
+docker compose up --build
+```
+
+Esto construye la imagen (Tesseract + español ya incluidos) y expone la app
+en `http://localhost:5000`. `docker-compose.yml` monta `./webapp/model` como
+volumen de solo lectura, así que si generas los pesos entrenados con el
+notebook, colócalos ahí y el contenedor los recoge sin reconstruir la imagen.
+
+Por defecto la imagen NO incluye TensorFlow/PyTorch (para mantenerla
+liviana), así que aunque coloques los pesos seguirá usando la heurística a
+menos que reconstruyas con:
+
+```bash
+docker compose build --build-arg INSTALL_MODEL_DEPS=true
+docker compose up
+```
+
+Sin `docker compose`, equivalente con `docker` a secas:
+
+```bash
+docker build -t ine-extractor .
+docker run -p 5000:5000 -v "$(pwd)/webapp/model:/app/webapp/model:ro" ine-extractor
+```
+
 ## Uso
 
 1. Sube la foto del frente de la INE (obligatorio).
