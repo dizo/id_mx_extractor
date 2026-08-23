@@ -78,8 +78,8 @@ docker compose up
 Sin `docker compose`, equivalente con `docker` a secas:
 
 ```bash
-docker build -t ine-extractor .
-docker run -p 5000:5000 -v "$(pwd)/webapp/model:/app/webapp/model:ro" ine-extractor
+docker build -t id_mx_extractor .
+docker run -p 5000:5000 -v "$(pwd)/webapp/model:/app/webapp/model:ro" id_mx_extractor
 ```
 
 ## Uso

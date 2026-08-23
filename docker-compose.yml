@@ -1,3 +1,5 @@
+name: id_mx_extractor
+
 services:
   web:
     build:
