@@ -1,0 +1,10 @@
+# Optional: only needed to run inference with trained models
+# (webapp/model/unet_ine.h5, webapp/model/field_detector.pth). The app
+# works fine without these — it falls back to the OpenCV heuristic +
+# regex pipeline in ine_extractor.py.
+#
+#   pip install -r requirements.txt -r requirements-model.txt
+#
+tensorflow==2.21.0
+torch==2.13.0
+torchvision==0.28.0

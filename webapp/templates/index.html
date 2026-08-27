@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Extractor de datos INE</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-mark">INE</span>
+        <span class="brand-text">Extractor de datos</span>
+      </div>
+      <p class="tagline">Sube tu credencial para votar y obtén sus datos automáticamente mediante OCR</p>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="upload-section">
+      <div class="dropzone" id="dropzone-front" data-side="front">
+        <input type="file" id="input-front" accept="image/*" hidden />
+        <div class="dropzone-empty">
+          <svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <p><strong>Frente de la INE</strong><br>Arrastra la imagen o haz clic para seleccionarla</p>
+        </div>
+        <img class="preview" id="preview-front" alt="Vista previa del frente" hidden />
+        <button type="button" class="remove-btn" data-target="front" hidden>&times;</button>
+      </div>
+
+      <div class="dropzone" id="dropzone-back" data-side="back">
+        <input type="file" id="input-back" accept="image/*" hidden />
+        <div class="dropzone-empty">
+          <svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <p><strong>Reverso (opcional)</strong><br>Mejora la validación cruzada vía código MRZ</p>
+        </div>
+        <img class="preview" id="preview-back" alt="Vista previa del reverso" hidden />
+        <button type="button" class="remove-btn" data-target="back" hidden>&times;</button>
+      </div>
+    </section>
+
+    <div class="actions">
+      <button id="extract-btn" class="primary-btn" disabled>Extraer datos</button>
+      <span id="status-msg" class="status-msg" role="status"></span>
+    </div>
+
+    <p class="privacy-note">
+      Tus imágenes se procesan únicamente para esta extracción y no se almacenan en el servidor.
+      Al tratarse de datos personales sensibles, usa esta herramienta solo con tu propia identificación
+      o con autorización explícita del titular.
+    </p>
+
+    <section id="results" class="results" hidden>
+      <h2>Datos extraídos <span class="badge">revisa y corrige antes de usar</span></h2>
+      <form id="results-form" class="results-grid">
+        <label>Nombre completo
+          <input type="text" name="nombre" />
+        </label>
+        <label>Domicilio
+          <input type="text" name="domicilio" />
+        </label>
+        <label>CURP
+          <input type="text" name="curp" maxlength="18" />
+        </label>
+        <label>Clave de elector
+          <input type="text" name="clave_elector" maxlength="18" />
+        </label>
+        <label>Fecha de nacimiento
+          <input type="text" name="fecha_nacimiento" placeholder="dd/mm/aaaa" />
+        </label>
+        <label>Sexo
+          <input type="text" name="sexo" maxlength="1" />
+        </label>
+        <label>Año de registro
+          <input type="text" name="anio_registro" />
+        </label>
+        <label>Estado
+          <input type="text" name="estado" />
+        </label>
+        <label>Municipio
+          <input type="text" name="municipio" />
+        </label>
+        <label>Localidad
+          <input type="text" name="localidad" />
+        </label>
+        <label>Sección
+          <input type="text" name="seccion" />
+        </label>
+        <label>Año de emisión
+          <input type="text" name="emision" />
+        </label>
+        <label>Vigencia
+          <input type="text" name="vigencia" />
+        </label>
+      </form>
+
+      <div id="mrz-panel" class="mrz-panel" hidden>
+        <h3>Datos del reverso (MRZ) <span class="badge badge-beta">experimental</span></h3>
+        <p class="mrz-hint">Lectura de la zona legible por máquina, útil para validar los datos del frente.</p>
+        <dl id="mrz-list" class="mrz-list"></dl>
+      </div>
+
+      <div class="results-actions">
+        <button type="button" id="copy-btn" class="secondary-btn">Copiar como JSON</button>
+        <button type="button" id="download-btn" class="secondary-btn">Descargar JSON</button>
+        <button type="button" id="raw-toggle-btn" class="secondary-btn">Ver texto OCR crudo</button>
+      </div>
+      <pre id="raw-text" class="raw-text" hidden></pre>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>Extracción automática mediante OpenCV + Tesseract OCR. Los resultados pueden contener errores, revísalos siempre.</p>
+  </footer>
+
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

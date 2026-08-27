@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Real INE photos / PII — never commit real identification documents.
+real_samples/
+*.ine_real.*
+
+# Trained model weights (regenerate via notebooks/train_ine_model.ipynb).
+webapp/model/*.h5
+webapp/model/*.keras
+webapp/model/*.pth
+ine_dataset/
