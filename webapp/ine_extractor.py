@@ -47,6 +47,21 @@ _det_model = None
 _det_load_attempted = False
 
 
+def _ensure_safe_ml_import_order():
+    """PyTorch/torchvision segfault if imported *after* TensorFlow in the
+    same process (their bundled native libraries conflict) — importing
+    torchvision first, even alone, sidesteps it. If both trained models
+    might end up loaded in this worker, force that safe order before
+    either loader gets a chance to import tensorflow first.
+    """
+    if os.path.isfile(SEG_MODEL_PATH) and os.path.isfile(DET_MODEL_PATH):
+        try:
+            import torch  # noqa: F401
+            import torchvision  # noqa: F401
+        except ImportError:
+            pass
+
+
 def _get_segmentation_model():
     global _seg_model, _seg_load_attempted
     if _seg_load_attempted:
@@ -54,6 +69,7 @@ def _get_segmentation_model():
     _seg_load_attempted = True
     if os.path.isfile(SEG_MODEL_PATH):
         try:
+            _ensure_safe_ml_import_order()
             import tensorflow as tf
 
             _seg_model = tf.keras.models.load_model(SEG_MODEL_PATH, compile=False)
